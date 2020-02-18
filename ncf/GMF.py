@@ -1,34 +1,32 @@
 '''
 Created on Aug 9, 2016
-Keras Implementation of Multi-Layer Perceptron (GMF) recommender model in:
+
+Keras Implementation of Generalized Matrix Factorization (GMF) recommender model in:
 He Xiangnan et al. Neural Collaborative Filtering. In WWW 2017.  
 
 @author: Xiangnan He (xiangnanhe@gmail.com)
 '''
-
 import numpy as np
-
-import theano
 import theano.tensor as T
 import keras
 from keras import backend as K
 from keras import initializations
-from keras.regularizers import l2, activity_l2
-from keras.models import Sequential, Graph, Model
+from keras.models import Sequential, Model, load_model, save_model
 from keras.layers.core import Dense, Lambda, Activation
-from keras.layers import Embedding, Input, Dense, merge, Reshape, Merge, Flatten, Dropout
-from keras.constraints import maxnorm
+from keras.layers import Embedding, Input, Dense, merge, Reshape, Merge, Flatten
 from keras.optimizers import Adagrad, Adam, SGD, RMSprop
-from com.zhumqs.ncf.evaluate import evaluate_model
-from com.zhumqs.ncf.Dataset import Dataset
+from keras.regularizers import l2
+from ncf.Dataset import Dataset
+from ncf.evaluate import evaluate_model
 from time import time
-import sys
-import argparse
 import multiprocessing as mp
+import sys
+import math
+import argparse
 
 #################### Arguments ####################
 def parse_args():
-    parser = argparse.ArgumentParser(description="Run MLP.")
+    parser = argparse.ArgumentParser(description="Run GMF.")
     parser.add_argument('--path', nargs='?', default='Data/',
                         help='Input data path.')
     parser.add_argument('--dataset', nargs='?', default='ml-1m',
@@ -37,10 +35,10 @@ def parse_args():
                         help='Number of epochs.')
     parser.add_argument('--batch_size', type=int, default=256,
                         help='Batch size.')
-    parser.add_argument('--layers', nargs='?', default='[64,32,16,8]',
-                        help="Size of each layer. Note that the first layer is the concatenation of user and item embeddings. So layers[0]/2 is the embedding size.")
-    parser.add_argument('--reg_layers', nargs='?', default='[0,0,0,0]',
-                        help="Regularization for each layer")
+    parser.add_argument('--num_factors', type=int, default=8,
+                        help='Embedding size.')
+    parser.add_argument('--regs', nargs='?', default='[0,0]',
+                        help="Regularization for user and item embeddings.")
     parser.add_argument('--num_neg', type=int, default=4,
                         help='Number of negative instances to pair with a positive instance.')
     parser.add_argument('--lr', type=float, default=0.001,
@@ -56,36 +54,30 @@ def parse_args():
 def init_normal(shape, name=None):
     return initializations.normal(shape, scale=0.01, name=name)
 
-def get_model(num_users, num_items, layers = [20,10], reg_layers=[0,0]):
-    assert len(layers) == len(reg_layers)
-    num_layer = len(layers) #Number of layers in the MLP
+def get_model(num_users, num_items, latent_dim, regs=[0,0]):
     # Input variables
     user_input = Input(shape=(1,), dtype='int32', name = 'user_input')
     item_input = Input(shape=(1,), dtype='int32', name = 'item_input')
 
-    MLP_Embedding_User = Embedding(input_dim = num_users, output_dim = layers[0]/2, name = 'user_embedding',
-                                  init = init_normal, W_regularizer = l2(reg_layers[0]), input_length=1)
-    MLP_Embedding_Item = Embedding(input_dim = num_items, output_dim = layers[0]/2, name = 'item_embedding',
-                                  init = init_normal, W_regularizer = l2(reg_layers[0]), input_length=1)   
+    MF_Embedding_User = Embedding(input_dim = num_users, output_dim = latent_dim, name = 'user_embedding',
+                                  init = init_normal, W_regularizer = l2(regs[0]), input_length=1)
+    MF_Embedding_Item = Embedding(input_dim = num_items, output_dim = latent_dim, name = 'item_embedding',
+                                  init = init_normal, W_regularizer = l2(regs[1]), input_length=1)   
     
     # Crucial to flatten an embedding vector!
-    user_latent = Flatten()(MLP_Embedding_User(user_input))
-    item_latent = Flatten()(MLP_Embedding_Item(item_input))
+    user_latent = Flatten()(MF_Embedding_User(user_input))
+    item_latent = Flatten()(MF_Embedding_Item(item_input))
     
-    # The 0-th layer is the concatenation of embedding layers
-    vector = merge([user_latent, item_latent], mode = 'concat')
+    # Element-wise product of user and item embeddings 
+    predict_vector = merge([user_latent, item_latent], mode = 'mul')
     
-    # MLP layers
-    for idx in range(1, num_layer):
-        layer = Dense(layers[idx], W_regularizer= l2(reg_layers[idx]), activation='relu', name = 'layer%d' %idx)
-        vector = layer(vector)
-        
     # Final prediction layer
-    prediction = Dense(1, activation='sigmoid', init='lecun_uniform', name = 'prediction')(vector)
+    #prediction = Lambda(lambda x: K.sigmoid(K.sum(x)), output_shape=(1,))(predict_vector)
+    prediction = Dense(1, activation='sigmoid', init='lecun_uniform', name = 'prediction')(predict_vector)
     
     model = Model(input=[user_input, item_input], 
-                  output=prediction)
-    
+                output=prediction)
+
     return model
 
 def get_train_instances(train, num_negatives):
@@ -99,30 +91,30 @@ def get_train_instances(train, num_negatives):
         # negative instances
         for t in range(num_negatives):
             j = np.random.randint(num_items)
-            while train.has_key((u, j)):
+            # train.has_key((u, j)
+            while (u, j) in train:
                 j = np.random.randint(num_items)
             user_input.append(u)
             item_input.append(j)
             labels.append(0)
+
     return user_input, item_input, labels
 
 if __name__ == '__main__':
     args = parse_args()
-    path = args.path
-    dataset = args.dataset
-    layers = eval(args.layers)
-    reg_layers = eval(args.reg_layers)
+    num_factors = args.num_factors
+    regs = eval(args.regs)
     num_negatives = args.num_neg
     learner = args.learner
     learning_rate = args.lr
-    batch_size = args.batch_size
     epochs = args.epochs
+    batch_size = args.batch_size
     verbose = args.verbose
     
     topK = 10
     evaluation_threads = 1 #mp.cpu_count()
-    print("MLP arguments: %s " %(args))
-    model_out_file = 'Pretrain/%s_MLP_%s_%d.h5' %(args.dataset, args.layers, time())
+    print("GMF arguments: %s" %(args))
+    model_out_file = 'Pretrain/%s_GMF_%d_%d.h5' %(args.dataset, num_factors, time())
     
     # Loading data
     t1 = time()
@@ -133,7 +125,7 @@ if __name__ == '__main__':
           %(time()-t1, num_users, num_items, train.nnz, len(testRatings)))
     
     # Build model
-    model = get_model(num_users, num_items, layers, reg_layers)
+    model = get_model(num_users, num_items, num_factors, regs)
     if learner.lower() == "adagrad": 
         model.compile(optimizer=Adagrad(lr=learning_rate), loss='binary_crossentropy')
     elif learner.lower() == "rmsprop":
@@ -141,13 +133,16 @@ if __name__ == '__main__':
     elif learner.lower() == "adam":
         model.compile(optimizer=Adam(lr=learning_rate), loss='binary_crossentropy')
     else:
-        model.compile(optimizer=SGD(lr=learning_rate), loss='binary_crossentropy')    
+        model.compile(optimizer=SGD(lr=learning_rate), loss='binary_crossentropy')
+    #print(model.summary())
     
-    # Check Init performance
+    # Init performance
     t1 = time()
     (hits, ndcgs) = evaluate_model(model, testRatings, testNegatives, topK, evaluation_threads)
     hr, ndcg = np.array(hits).mean(), np.array(ndcgs).mean()
-    print('Init: HR = %.4f, NDCG = %.4f [%.1f]' %(hr, ndcg, time()-t1))
+    #mf_embedding_norm = np.linalg.norm(model.get_layer('user_embedding').get_weights())+np.linalg.norm(model.get_layer('item_embedding').get_weights())
+    #p_norm = np.linalg.norm(model.get_layer('prediction').get_weights()[0])
+    print('Init: HR = %.4f, NDCG = %.4f\t [%.1f s]' % (hr, ndcg, time()-t1))
     
     # Train model
     best_hr, best_ndcg, best_iter = hr, ndcg, -1
@@ -155,13 +150,13 @@ if __name__ == '__main__':
         t1 = time()
         # Generate training instances
         user_input, item_input, labels = get_train_instances(train, num_negatives)
-    
-        # Training        
+        
+        # Training
         hist = model.fit([np.array(user_input), np.array(item_input)], #input
                          np.array(labels), # labels 
                          batch_size=batch_size, nb_epoch=1, verbose=0, shuffle=True)
         t2 = time()
-
+        
         # Evaluation
         if epoch %verbose == 0:
             (hits, ndcgs) = evaluate_model(model, testRatings, testNegatives, topK, evaluation_threads)
@@ -175,4 +170,4 @@ if __name__ == '__main__':
 
     print("End. Best Iteration %d:  HR = %.4f, NDCG = %.4f. " %(best_iter, best_hr, best_ndcg))
     if args.out > 0:
-        print("The best MLP model is saved to %s" %(model_out_file))
+        print("The best GMF model is saved to %s" %(model_out_file))
