@@ -6,7 +6,7 @@ if __name__ == '__main__':
 
     num1 = [0.01, 0.345, 0.539, 0.580, 0.593, 0.595, 0.597, 0.601, 0.599, 0.602, 0.601]
     num2 = [0.01, 0.15, 0.266, 0.293, 0.310, 0.311, 0.312, 0.314, 0.310, 0.313, 0.312]
-    num3 = [0.01, 0.11, 0.16, 0.18, 0.185, 0.189, 0.192, 0.191, 0.193, 0.196, 0.195]
+    num3 = [0.01, 0.11, 0.21000000000000002, 0.22999999999999998, 0.235, 0.239, 0.242, 0.241, 0.243, 0.246, 0.245]
     num = [num1,num2,num3]
     num.reverse()
     plt.rcParams['font.sans-serif'] = ['SimHei'] # 可以解释中文无法显示的问题
@@ -16,7 +16,7 @@ if __name__ == '__main__':
     plt.grid(ls='--')
     lable = ['FC based Caching', 'MPC based Caching', 'Proposed Caching'] # 折现名称
     markes = ['-o', '-^', '-*'] # 折现显示形状
-    lable.reverse()
+    # lable.reverse()
     print(num)
     for link in range(len(num)):
         plt.plot(x,num[link],markes[link],label = lable[link])
@@ -30,5 +30,5 @@ if __name__ == '__main__':
     plt.legend()
     plt.rcParams['savefig.dpi'] = 500  # 图片像素
     plt.rcParams['figure.dpi'] = 500  # 分辨率
-    plt.savefig("social_relationship.png")
+    plt.savefig("social_relationship_impact.png")
     plt.show()

@@ -3,13 +3,13 @@ import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
 
-    num1 = [0.16, 0.51, 0.56, 0.583, 0.591, 0.593, 0.594, 0.594, 0.594, 0.594, 0.594]
-    num2 = [0.04,0.23, 0.33, 0.395, 0.45, 0.485, 0.52, 0.55, 0.57, 0.58, 0.587]
-    num3 = [0,0.08,0.155,0.225,0.300,0.355,0.403,0.450,0.489,0.527,0.558]
+    num1 = [0.0, 0.51, 0.56, 0.583, 0.591, 0.593, 0.594, 0.594, 0.594, 0.594, 0.594]
+    num2 = [0.0,0.23, 0.33, 0.395, 0.45, 0.485, 0.52, 0.55, 0.57, 0.58, 0.587]
+    num3 = [0.0,0.09,0.160,0.225,0.300,0.355,0.403,0.450,0.489,0.527,0.558]
     num = [num1,num2,num3]
-    num.reverse()
+    # num.reverse()
     plt.rcParams['font.sans-serif'] = ['SimHei'] # 可以解释中文无法显示的问题
-    x = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90 ,100]
+    x = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45 ,50]
     plt.grid(ls='--')
     lable = ['FC based Caching', 'MPC based Caching', 'Proposed Caching'] # 折现名称
     markes = ['-o', '-^', '-*'] # 折现显示形状
@@ -27,5 +27,5 @@ if __name__ == '__main__':
     plt.legend()
     plt.rcParams['savefig.dpi'] = 500  # 图片像素
     plt.rcParams['figure.dpi'] = 500  # 分辨率
-    plt.savefig("part2_device_capacity.png")
+    plt.savefig("cache_capacity_impact.png")
     plt.show()
