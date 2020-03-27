@@ -4,6 +4,24 @@ Processing datasets.
 
 @author: Xiangnan He (xiangnanhe@gmail.com)
 '''
+
+'''
+Dataset Description
+We provide two processed datasets: MovieLens 1 Million (ml-1m) and Pinterest (pinterest-20).
+
+1. train.rating:
+    Train file.
+    Each Line is a training instance: userID\t itemID\t rating\t timestamp (if have)
+
+2. test.rating:
+    Test file (positive instances).
+    Each Line is a testing instance: userID\t itemID\t rating\t timestamp (if have)
+
+3. test.negative
+    Test file (negative instances).
+    Each line corresponds to the line of test.rating, containing 99 negative samples.
+    Each line is in the format: (userID,itemID)\t negativeItemID1\t negativeItemID2 ...
+'''
 import scipy.sparse as sp
 import numpy as np
 

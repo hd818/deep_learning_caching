@@ -13,7 +13,7 @@ if __name__ == '__main__':
 
     x = [3,4,5,6,7,8,9]
     plt.grid(ls='--')
-    lable = ['Content-Aware based Cache', 'CF&LFM based Cache', 'Proposed Cache'] # 折现名称
+    lable = ['Content-Aware Model', 'CF&LFM Cache', 'NCF Model'] # 折现名称
     markes = ['->', '-^', '-o'] # 折现显示形状
     lable.reverse()
     print(num)

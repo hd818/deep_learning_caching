@@ -24,7 +24,7 @@ if __name__ == '__main__':
     plt.subplots_adjust(bottom=0.10)
     plt.xlabel('Comprehensive Social Relationship(L)')  # X轴标签
     plt.ylabel("Cache Hit Ratio")  # Y轴标签
-    plt.yticks([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7])
+    plt.yticks([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
     plt.xticks(x)
     #plt.title("A simple plot") #标题
     plt.legend()
